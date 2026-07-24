@@ -20,11 +20,29 @@ auto scheduler::init_impl(size_t ctx_cnt) noexcept -> void
     m_mem_alloc.init(config);
     ginfo.mem_alloc = &m_mem_alloc;
 #endif
+    m_ctx_stop_flag = stop_flag_type(m_ctx_cnt, detail::atomic_ref_wrapper<int>{.val = 1});
+    m_stop_token    = m_ctx_cnt;
 }
 
+inline static auto loop() noexcept -> void { get_instance()->loop_impl(); }
 auto scheduler::loop_impl() noexcept -> void
 {
     // TODO[lab2b]: Add you codes
+    for (int i = 0; i < m_ctx_cnt; i++)
+    {
+        m_ctxs[i]->set_stop_cb(
+            [&, i]()
+            {
+                // context 将其关联的状态设置为 0 即已执行完所有任务，cnt 总是为 1
+                auto cnt = std::atomic_ref(this->m_ctx_stop_flag[i].val).fetch_and(0, memory_order_acq_rel);
+                // 将 scheduler 的引用计数减 1，如果引用计数降至 0，那么触发 scheduler 发送停止信号
+                if (this->m_stop_token.fetch_sub(cnt) == cnt)
+                {
+                    this->stop_impl();
+                }
+            });
+        m_ctxs[i]->start();
+    }
 }
 
 auto scheduler::stop_impl() noexcept -> void
@@ -41,7 +59,13 @@ auto scheduler::stop_impl() noexcept -> void
 auto scheduler::submit_task_impl(std::coroutine_handle<> handle) noexcept -> void
 {
     // TODO[lab2b]: Add you codes
+    // 不要在 scheduler::loop 结束后再添加新任务
+    assert(this->m_stop_token.load(std::memory_order_acquire) != 0 && "error! submit task after scheduler loop finish");
     size_t ctx_id = m_dispatcher.dispatch();
+    // 直接增加引用计数是不合理的，
+    // 根据 context 的运行状态来增加引用计数，避免冗余增加
+    m_stop_token.fetch_add(
+        1 - std::atomic_ref(m_ctx_stop_flag[ctx_id].val).fetch_or(1, memory_order_acq_rel), memory_order_acq_rel);
     m_ctxs[ctx_id]->submit_task(handle);
 }
 }; // namespace coro

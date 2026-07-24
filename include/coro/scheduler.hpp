@@ -76,6 +76,14 @@ private:
     detail::ctx_container                               m_ctxs;
     detail::dispatcher<coro::config::kDispatchStrategy> m_dispatcher;
     // TODO[lab2b]: Add more member variables if you need
+    // 上文提到的引用计数
+    using stop_token_type = std::atomic<int>;
+
+    // 每个 context 对应的状态，只有 0 和 1 两个值，0 表示 context 已完成所有任务，1 表示 context 还在执行任务中
+    using stop_flag_type  = std::vector<detail::atomic_ref_wrapper<int>>;
+
+    stop_flag_type m_ctx_stop_flag; // 存储各个 context 的执行状态
+    stop_token_type m_stop_token; // 引用计数成员变量
 
 #ifdef ENABLE_MEMORY_ALLOC
     // Memory Allocator

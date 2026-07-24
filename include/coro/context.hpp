@@ -137,6 +137,30 @@ public:
     [[CORO_TEST_USED(lab2b)]] auto run(stop_token token) noexcept -> void;
 
     // TODO[lab2b]: Add more function if you need
+    
+    // 驱动 engine 从任务队列取出任务并执行
+    auto context::process_work() noexcept -> void
+    {
+        auto num = m_engine.num_task_schedule();
+        for (int i = 0; i < num; i++)
+        {
+            m_engine.exec_one_task();
+        }
+    }
+    // 驱动 engine 执行 IO 任务
+    auto context::poll_work() noexcept -> void { m_engine.poll_submit(); }
+    // 判断是否没有 IO 任务以及引用计数是否为 0
+    auto context::empty_wait_task() noexcept -> bool
+    {
+        return m_num_wait_task.load(memory_order_acquire) == 0 && m_engine.empty_io();
+    }
+
+    using stop_cb = std::function<void()>;
+    stop_cb m_stop_cb;
+
+    auto set_stop_cb(stop_cb cb) noexcept -> void{
+        m_stop_cb = cb;
+    }
 
 private:
     CORO_ALIGN engine   m_engine;
@@ -144,6 +168,7 @@ private:
     ctx_id              m_id;
 
     // TODO[lab2b]: Add more member variables if you need
+    atomic<size_t>      context::m_num_wait_task{0};
 };
 
 inline context& local_context() noexcept
