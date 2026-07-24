@@ -1,7 +1,9 @@
 #pragma once
 
+#include <atomic>
 #include <coroutine>
 #include <cstdint>
+#include <functional>
 
 namespace coro::detail
 {
@@ -29,6 +31,12 @@ enum class memory_allocator : uint8_t
 {
     std_allocator,
     none
+};
+
+template <typename T>
+struct atomic_ref_wrapper
+{
+    T val;
 };
 
 }; // namespace coro::detail

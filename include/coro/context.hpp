@@ -11,6 +11,7 @@
 #pragma once
 
 #include <atomic>
+#include <functional>
 #include <memory>
 #include <thread>
 
@@ -139,7 +140,7 @@ public:
     // TODO[lab2b]: Add more function if you need
     
     // 驱动 engine 从任务队列取出任务并执行
-    auto context::process_work() noexcept -> void
+    auto process_work() noexcept -> void
     {
         auto num = m_engine.num_task_schedule();
         for (int i = 0; i < num; i++)
@@ -148,9 +149,9 @@ public:
         }
     }
     // 驱动 engine 执行 IO 任务
-    auto context::poll_work() noexcept -> void { m_engine.poll_submit(); }
+    auto poll_work() noexcept -> void { m_engine.poll_submit(); }
     // 判断是否没有 IO 任务以及引用计数是否为 0
-    auto context::empty_wait_task() noexcept -> bool
+    auto empty_wait_task() noexcept -> bool
     {
         return m_num_wait_task.load(memory_order_acquire) == 0 && m_engine.empty_io();
     }
@@ -168,7 +169,7 @@ private:
     ctx_id              m_id;
 
     // TODO[lab2b]: Add more member variables if you need
-    atomic<size_t>      context::m_num_wait_task{0};
+    atomic<size_t>      m_num_wait_task{0};
 };
 
 inline context& local_context() noexcept

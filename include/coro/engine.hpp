@@ -133,6 +133,14 @@ public:
     [[CORO_TEST_USED(lab2a)]] auto poll_submit() noexcept -> void;
 
     /**
+     * @brief notify engine to wake up from eventfd wait
+     *
+     */
+    auto notify_stop() noexcept -> void;
+
+    auto wake_up() noexcept -> void;
+
+    /**
      * @brief tell engine there has one io to be submitted, engine will record this
      *
      */

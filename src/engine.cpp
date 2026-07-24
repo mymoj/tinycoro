@@ -73,6 +73,16 @@ auto engine::handle_cqe_entry(urcptr cqe) noexcept -> void
     data->cb(data, cqe->res);
 }
 
+auto engine::notify_stop() noexcept -> void
+{
+    m_upxy.write_eventfd(1);
+}
+
+auto engine::wake_up() noexcept -> void
+{
+    m_upxy.write_eventfd(1);
+}
+
 auto engine::poll_submit() noexcept -> void
 {
     // TODO[lab2a]: Add you codes

@@ -24,7 +24,6 @@ auto scheduler::init_impl(size_t ctx_cnt) noexcept -> void
     m_stop_token    = m_ctx_cnt;
 }
 
-inline static auto loop() noexcept -> void { get_instance()->loop_impl(); }
 auto scheduler::loop_impl() noexcept -> void
 {
     // TODO[lab2b]: Add you codes
@@ -42,6 +41,11 @@ auto scheduler::loop_impl() noexcept -> void
                 }
             });
         m_ctxs[i]->start();
+    }
+    // 等待所有 context 线程结束
+    for (int i = 0; i < m_ctx_cnt; i++)
+    {
+        m_ctxs[i]->join();
     }
 }
 
