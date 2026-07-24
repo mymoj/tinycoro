@@ -43,6 +43,13 @@ class task;
 
 namespace detail
 {
+
+ enum class coro_state {
+    normal,
+    detached,
+    none
+ };
+
 struct promise_base
 {
     promise_base() noexcept = default;
@@ -50,7 +57,31 @@ struct promise_base
 
     constexpr auto initial_suspend() noexcept { return std::suspend_always{}; }
 
-    [[CORO_TEST_USED(lab1)]] auto final_suspend() noexcept -> std::suspend_always
+    std::coroutine_handle<> m_continuation{nullptr};
+    coro_state m_state{coro_state::none};
+    void set_state(coro_state state) { m_state = state; }
+    coro_state const get_state() { return m_state; }
+
+    auto continuation(std::coroutine_handle<> handle){
+        m_continuation = handle;
+    }
+
+    struct final_awaiter
+    {
+        bool await_ready() const noexcept { return false; }
+
+        template<typename promise_type>
+        auto await_suspend(std::coroutine_handle<promise_type> coroutine) noexcept -> std::coroutine_handle<>
+        {
+            return coroutine.promise().m_continuation != nullptr
+                        ? coroutine.promise().m_continuation
+                        : std::noop_coroutine();
+        }
+
+        void await_resume() noexcept {}
+    };
+
+    [[CORO_TEST_USED(lab1)]] auto final_suspend() noexcept -> final_awaiter
     {
         // TODO[lab1]: Add you codes
         // Return suspend_always is incorrect,
@@ -169,6 +200,7 @@ public:
         auto await_suspend(std::coroutine_handle<> awaiting_coroutine) noexcept -> std::coroutine_handle<>
         {
             // TODO[lab1]: Add you codes
+            m_coroutine.promise().continuation(awaiting_coroutine);
             return m_coroutine;
         }
 
@@ -235,6 +267,8 @@ public:
     [[CORO_TEST_USED(lab1)]] auto detach() -> void
     {
         // TODO[lab1]: Add you codes
+        m_coroutine.promise().set_state(detail::coro_state::detached);
+        m_coroutine = nullptr;
     }
 
     auto operator co_await() const& noexcept
@@ -278,6 +312,13 @@ using coroutine_handle = std::coroutine_handle<detail::promise_base>;
 [[CORO_TEST_USED(lab1)]] inline auto clean(std::coroutine_handle<> handle) noexcept -> void
 {
     // TODO[lab1]: Add you codes
+    if(handle == nullptr){
+        return;
+    }
+    auto promise = coroutine_handle::from_address(handle.address()).promise();
+    if(promise.get_state() == detail::coro_state::detached){
+         handle.destroy();
+    }
 }
 
 namespace detail
