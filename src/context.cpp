@@ -61,7 +61,7 @@ auto context::register_wait(int register_cnt) noexcept -> void
 auto context::unregister_wait(int register_cnt) noexcept -> void
 {
     // TODO[lab2b]: Add you codes
-    m_num_wait_task.fetch_add(size_t(register_cnt), memory_order_acq_rel);
+    m_num_wait_task.fetch_sub(size_t(register_cnt), memory_order_acq_rel);
 }
 
 auto context::run(stop_token token) noexcept -> void

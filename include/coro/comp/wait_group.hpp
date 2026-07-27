@@ -19,7 +19,7 @@ namespace coro
 {
 /**
  * @brief Welcome to tinycoro lab4c, in this part you will build the basic coroutine
- * synchronization component��wait_group by modifing wait_group.hpp and wait_group.cpp.
+ * synchronization component��wait_group by modifing wait_group.hpp and wait_group.cpp.
  * Please ensure you have read the document of lab4c.
  *
  * @warning You should carefully consider whether each implementation should be thread-safe.
@@ -41,13 +41,36 @@ class context;
 class wait_group
 {
 public:
-    explicit wait_group(int count = 0) noexcept {}
+    struct awaiter
+    {
+        awaiter(context& ctx, wait_group& wg) noexcept : m_ctx(ctx), m_wg(wg) {}
 
-    auto add(int count) noexcept -> void {};
+        constexpr auto await_ready() noexcept -> bool { return false; }
 
-    auto done() noexcept -> void {};
+        auto await_suspend(std::coroutine_handle<> handle) noexcept -> bool;
 
-    auto wait() noexcept -> detail::noop_awaiter { return {}; };
+        auto await_resume() noexcept -> void;
+
+        auto resume() noexcept -> void;
+
+        context&                m_ctx; // 绑定的 context
+        wait_group&             m_wg; // 绑定的 wait_group
+        awaiter*                m_next{nullptr}; // suspend awaiter 链表的 next 指针
+        std::coroutine_handle<> m_await_coro{nullptr}; // 待 resume 的协程句柄
+    };
+
+    explicit wait_group(int count = 0) noexcept : m_count(count) {}
+
+    auto add(int count) noexcept -> void;
+
+    auto done() noexcept -> void;
+
+    auto wait() noexcept -> awaiter;
+
+private:
+    friend awaiter;
+    std::atomic<int32_t>     m_count; // 保存计数
+    std::atomic<awaiter_ptr> m_state; // 与 event 的 m_state 功能一致
 };
 
 }; // namespace coro
