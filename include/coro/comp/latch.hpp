@@ -56,7 +56,7 @@ public:
 
     auto wait() noexcept -> event_t::awaiter { return m_ev.wait(); }
 
-    private:
+private:
     std::atomic<std::int64_t> m_count;
     event_t                   m_ev;
 };

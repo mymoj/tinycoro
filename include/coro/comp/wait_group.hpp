@@ -34,6 +34,7 @@ namespace coro
  */
 
 class context;
+using detail::awaiter_ptr;
 
 // TODO[lab4c]: This wait_group is an example to make complie success,
 // You should delete it and add your implementation, I don't care what you do,
