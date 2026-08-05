@@ -174,6 +174,7 @@ public:
     inline auto get_uring() noexcept -> uring_proxy& { return m_upxy; }
 
     // TODO[lab2a]: Add more function if you need
+    auto engine::do_io_submit() noexcept -> void;
 
 private:
     uint32_t    m_id;

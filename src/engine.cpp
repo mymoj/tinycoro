@@ -86,25 +86,37 @@ auto engine::wake_up() noexcept -> void
 auto engine::poll_submit() noexcept -> void
 {
     // TODO[lab2a]: Add you codes
-    // 第1步：提交待处理的 I/O
-    auto pending = m_submit_io.exchange(0, std::memory_order_relaxed);
-    if (pending > 0) {
-        auto submitted = m_upxy.submit();
-        m_running_io.fetch_add(submitted, std::memory_order_relaxed);
+    do_io_submit(); // 提交 IO
+
+    auto cnt = m_upxy.wait_eventfd(); // 等待 IO 执行
+    if (!wake_by_cqe(cnt))
+    {
+        return;
     }
 
-    // 第2步：有运行中的 I/O → 等完成 + 处理
-    if (m_running_io.load(std::memory_order_relaxed) > 0) {
-        m_upxy.wait_eventfd();                          // 阻塞等 I/O 完成
-        auto num = m_upxy.peek_batch_cqe(m_urc.data(), config::kQueCap);
-        for (int i = 0; i < num; i++) {
-            handle_cqe_entry(m_urc[i]);                  // 处理每个 CQE
+    // 取出 IO
+    auto num = m_upxy.peek_batch_cqe(m_urc.data(), m_num_io_running.load(std::memory_order_acquire));
+
+    if (num != 0)
+    {
+        // 处理 IO
+        for (int i = 0; i < num; i++)
+        {
+            handle_cqe_entry(m_urc[i]);
         }
-        m_upxy.cq_advance(num);                          // 标记已处理
-        m_running_io.fetch_sub(num, std::memory_order_relaxed);
-    } else {
-        // 第3步：没有 I/O → 阻塞等任务到来
-        m_upxy.wait_eventfd();
+        m_upxy.cq_advance(num);
+        m_num_io_running.fetch_sub(num, std::memory_order_acq_rel);
+    }
+}
+
+auto engine::do_io_submit() noexcept -> void
+{
+    // 利用条件判断来决定是否需要调用 io_uring 的提交操作
+    if (m_num_io_wait_submit > 0)
+    {
+        [[CORO_MAYBE_UNUSED]] auto _ = m_upxy.submit();
+        m_num_io_running += m_num_io_wait_submit; 
+        m_num_io_wait_submit = 0; // io_uring 会一次提交所有 IO
     }
 }
 
